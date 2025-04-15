@@ -20,9 +20,22 @@ model = UNet2DModel(
     in_channels=3,
     out_channels=3,
     layers_per_block=3,
-    block_out_channels=(256, 512, 1024),
-    down_block_types=("DownBlock2D", "DownBlock2D"),
-    up_block_types=("UpBlock2D", "UpBlock2D"),
+    block_out_channels=(128, 256, 512, 1024),
+
+    down_block_types = (
+    "DownBlock2D", 
+    "AttnDownBlock2D",
+    "AttnDownBlock2D",
+    "DownBlock2D"),
+    up_block_types=("UpBlock2D",
+    "AttnUpBlock2D",
+    "AttnUpBlock2D",
+    "UpBlock2D"),
+    cross_attention_dim=768,
+    attention_head_dim=8,
+    mid_block_scale_factor=1,
+    norm_num_groups=32,
+    norm_eps=1e-5,
 ).to(device)
 
 scheduler = DDPMScheduler(num_train_timesteps=timesteps)
@@ -66,6 +79,7 @@ print(f"Using device: {device}")
 print(f"Model: {model.__class__.__name__}")
 print(f"Scheduler: {scheduler.__class__.__name__}")
 print(f"Parameters: {sum(p.numel() for p in model.parameters()):.3e}")
+sample_interval = 100
 for epoch in range(start_epoch, epochs):
     pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}", leave=False)
     total_loss = 0
@@ -91,3 +105,18 @@ for epoch in range(start_epoch, epochs):
         scheduler.save_pretrained(f"checkpoints{epochs}_{image_size}/ddpm-scheduler{epoch}_loss{avg_loss}")
         model.save_pretrained(f"checkpoints{epochs}_{image_size}/latest_ddpm-unet")
         scheduler.save_pretrained(f"checkpoints{epochs}_{image_size}/latest_ddpm-scheduler")
+        # 训练完一个 epoch 后进行采样（每 N 次）
+    if (epoch + 1) % sample_interval == 0:
+        model.eval()
+        with torch.no_grad():
+            scheduler.set_timesteps(50)
+            x = torch.randn(1, 3, image_size, image_size).to(device)
+            for t in scheduler.timesteps:
+                noise_pred = model(x, t).sample
+                x = scheduler.step(noise_pred, t, x).prev_sample
+
+            from torchvision.utils import save_image
+            os.makedirs(f"samples{image_size}", exist_ok=True)
+            save_image((x + 1) / 2, f"samples{image_size}/epoch{epoch+1:04}.png")
+        model.train()
+
