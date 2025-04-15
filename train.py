@@ -9,8 +9,8 @@ import os
 
 # ====== configs ======
 image_size = 256
-batch_size = 4
-timesteps = 100
+batch_size = 2
+timesteps = 2000
 epochs = 3000
 device = "cuda:6"
 
@@ -20,7 +20,7 @@ model = UNet2DModel(
     in_channels=3,
     out_channels=3,
     layers_per_block=3,
-    block_out_channels=(128, 256, 512),
+    block_out_channels=(256, 512, 1024),
     down_block_types=("DownBlock2D", "DownBlock2D"),
     up_block_types=("UpBlock2D", "UpBlock2D"),
 ).to(device)
@@ -47,14 +47,11 @@ if os.path.exists(latest_unet_path):
         print(f"⏩ Resuming from epoch {start_epoch}")
     else:
         print("⚠️ Could not determine previous epoch, starting from 0.")
-else:
-    assert False, "No checkpoint found. Please train the model first."
+        start_epoch = 0
 # ====== dataset ======
 transform = transforms.Compose([
     transforms.Resize(image_size),
     transforms.CenterCrop(image_size),
-    transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
     transforms.ToTensor(),
     transforms.Normalize([0.5]*3, [0.5]*3),
 ])
@@ -68,7 +65,7 @@ print(f"Training on {len(dataset)} images with batch size {batch_size} for {epoc
 print(f"Using device: {device}")
 print(f"Model: {model.__class__.__name__}")
 print(f"Scheduler: {scheduler.__class__.__name__}")
-print(f"Parameters: {sum(p.numel() for p in model.parameters())}")
+print(f"Parameters: {sum(p.numel() for p in model.parameters()):.3e}")
 for epoch in range(start_epoch, epochs):
     pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}", leave=False)
     total_loss = 0
@@ -91,6 +88,6 @@ for epoch in range(start_epoch, epochs):
         print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
         os.makedirs(f"checkpoints{epochs}_{image_size}", exist_ok=True)
         model.save_pretrained(f"checkpoints{epochs}_{image_size}/ddpm-unet{epoch}_loss{avg_loss}")
-        scheduler.save_pretrained(f"checkpoints{epochs}{image_size}/ddpm-scheduler{epoch}_loss{avg_loss}")
+        scheduler.save_pretrained(f"checkpoints{epochs}_{image_size}/ddpm-scheduler{epoch}_loss{avg_loss}")
         model.save_pretrained(f"checkpoints{epochs}_{image_size}/latest_ddpm-unet")
-        scheduler.save_pretrained(f"checkpoints{epochs}{image_size}/latest_ddpm-scheduler")
+        scheduler.save_pretrained(f"checkpoints{epochs}_{image_size}/latest_ddpm-scheduler")
