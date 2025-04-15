@@ -61,6 +61,9 @@ if os.path.exists(latest_unet_path):
     else:
         print("⚠️ Could not determine previous epoch, starting from 0.")
         start_epoch = 0
+else:
+    print("⚠️ No checkpoint found, starting from scratch.")
+    start_epoch = 0
 # ====== dataset ======
 transform = transforms.Compose([
     transforms.Resize(image_size),
