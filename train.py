@@ -31,11 +31,11 @@ model = UNet2DModel(
     "AttnUpBlock2D",
     "AttnUpBlock2D",
     "UpBlock2D"),
-    cross_attention_dim=768,
-    attention_head_dim=8,
-    mid_block_scale_factor=1,
-    norm_num_groups=32,
-    norm_eps=1e-5,
+    # cross_attention_dim=768,
+    # attention_head_dim=8,
+    # mid_block_scale_factor=1,
+    # norm_num_groups=32,
+    # norm_eps=1e-5,
 ).to(device)
 
 scheduler = DDPMScheduler(num_train_timesteps=timesteps)
